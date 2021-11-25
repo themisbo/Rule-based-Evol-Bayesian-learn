@@ -1,0 +1,128 @@
+---
+title: "Linear regression"
+author: "Themistoklis Botsas"
+date: "25/11/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Linear regression (rule discovery)
+
+## Load the packages
+
+```{r}
+library("gramEvol")
+library("tidyverse")
+library("rjson")
+```
+
+## Load the data
+
+```{r}
+json_file <- "/Users/tbotsas/Documents/Research/synthetic_autorules/data_linear.txt"
+json_data <- fromJSON(file=json_file)
+
+x_all <- (json_data$x_all %>% str_split(","))[[1]] %>% parse_number()
+y_all <- (json_data$y_all %>% str_split(","))[[1]] %>% parse_number()
+x <- (json_data$x %>% str_split(","))[[1]] %>% parse_number()
+y <- (json_data$y %>% str_split(","))[[1]] %>% parse_number()
+
+data_all <- tibble(x_all = x_all, y_all = y_all)
+data <- tibble(x, y)
+```
+
+## Plot the data
+
+```{r}
+ggplot(data_all) +
+  geom_point(aes(x=x_all, y=y_all)) +
+  geom_point(data = data, aes(x, y), col = "green")
+```
+
+
+## Summary statistics
+
+```{r}
+skimr::skim(data)
+```
+
+## Proportion rules
+
+* Define the grammar
+
+```{r}
+ruleDef <- list(
+  res = grule( sum((comparison(data$x, num)) != (comparison(data$y, num_y)))),
+  comparison = grule(`>`, `<`, `>=`, `<=`),
+  num = gvrule(seq(4.1, 4.9, by = .05)),
+  num_y = gvrule(seq(7, 11, by = .05)))
+
+grammarDef <- CreateGrammar(ruleDef)
+grammarDef
+
+set.seed(123)
+GrammarRandomExpression(grammarDef, 6)
+```
+
+* Define the cost function
+
+```{r}
+SymRegFitFunc <- function(expr) {
+  result <- suppressWarnings(eval(expr))
+  if (any(is.nan(result)))
+    return(Inf)
+  return (result)
+}
+```
+
+
+* Run the Grammatical evolution algorithm
+
+```{r}
+set.seed(123)
+ge <- GrammaticalEvolution(grammarDef, SymRegFitFunc)
+ge
+
+#Best Expression:  sum((data$x >= 4.85) != (data$y > 10.8))
+#Best Cost:        12 
+```
+
+
+# Plot the rule
+
+```{r}
+options(repr.plot.width=16, repr.plot.height=8)
+
+p_res <- ggplot(data_all,linetype=label,shape=label) +
+  geom_point(aes(x_all, y_all, color = "black"),show.legend = T, size = 3) +
+  geom_rect(aes(xmin = -Inf, xmax = 4.8, ymin = -Inf, ymax = 10.65), fill = "pink", alpha = 0.03) +
+  geom_rect(aes(xmin = 4.8, xmax = Inf, ymin = 10.65, ymax = Inf), fill = "pink", alpha = 0.03) +
+  geom_point(data = data, aes(x, y, col = "green4"),show.legend = T, size = 3) + 
+  geom_vline(xintercept = 4.8, color = "red", size = 3) +
+  geom_hline(yintercept = 10.65, color = "red", size = 3) + 
+  geom_abline(aes(intercept = 1, slope = 2, color = "blue"), size = 3, show.legend = T) + 
+  labs(y = "y", x = "x") +
+  theme(axis.text.x=element_text(angle=60, hjust=1)) + 
+  scale_colour_manual('', 
+                      values = c('black' = 'black',
+                                 'green4' = 'green4',
+                                 'blue' = 'blue'), 
+                      labels = c('Data',
+                                 'Training data',
+                                 "True regression line"),
+                     guide = guide_legend(override.aes = list(linetype = c(0, 0, 1),
+                                                              shape = c(16, 16, NA)) ) )
+p_res
+
+#ggsave("linear_synthrules.png", p_res,width = 16, height = 8, dpi = 300)
+```
+
+
+
+
+
