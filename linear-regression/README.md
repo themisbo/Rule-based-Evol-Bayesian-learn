@@ -1,6 +1,6 @@
 # Linear regression
 
-The first step is to run the [grammatical evolution](linreg_gramevol.html) algorithm in `R` in order to derive the rules
+The first step is to run the [grammatical evolution](linreg_gramevol.Rmd) algorithm in `R` in order to derive the rules
 
 The second step is to perform the [automated rule-based Bayesian regression analysis](linreg_analysis.ipynb) in `python`.
 
