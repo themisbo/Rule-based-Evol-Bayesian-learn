@@ -24,7 +24,7 @@ library("rjson")
 ## Load the data
 
 ```{r}
-json_file <- "/Users/tbotsas/Documents/Research/synthetic_autorules/data_linear.txt"
+json_file <- "data_linear.txt"
 json_data <- fromJSON(file=json_file)
 
 x_all <- (json_data$x_all %>% str_split(","))[[1]] %>% parse_number()
@@ -93,7 +93,7 @@ ge
 ```
 
 
-# Plot the rule
+## Plot the rule
 
 ```{r}
 options(repr.plot.width=16, repr.plot.height=8)
@@ -123,6 +123,70 @@ p_res
 ```
 
 
+## Total distance rules
 
+* Define the grammar
+
+```{r}
+ruleDef <- list(
+  res = grule( ifelse((comparison(data$x, num)) != (comparison(data$y, (d=num_y))), d, data$y) ),
+  comparison = grule(`>`, `<`, `>=`, `<=`),
+  num = gvrule(seq(4.1, 4.9, by = .05)),
+  num_y = gvrule(seq(7, 11, by = .05)))
+
+grammarDef <- CreateGrammar(ruleDef)
+grammarDef
+
+set.seed(123)
+GrammarRandomExpression(grammarDef, 6)
+```
+
+* Define the cost function
+
+```{r}
+symRegCostFunc <- function(res) {
+  result <- suppressWarnings(eval(res))
+  if (any(is.nan(result)))
+    return (Inf)
+  return (sum((data$y - result)^2))}
+```
+
+
+* Run the Grammatical evolution algorithm
+
+```{r}
+set.seed(123)
+ge <- GrammaticalEvolution(grammarDef, symRegCostFunc)
+ge
+```
+
+
+## Plot the rule
+
+```{r}
+p_res <- ggplot(data_all,linetype=label,shape=label) +
+  geom_point(aes(x_all, y_all, color = "black"),show.legend = T, size = 3) +
+  geom_rect(aes(xmin = -Inf, xmax = 4.85, ymin = -Inf, ymax = 11), fill = "pink", alpha = 0.03) +
+  geom_rect(aes(xmin = 4.85, xmax = Inf, ymin = 11, ymax = Inf), fill = "pink", alpha = 0.03) +
+  geom_point(data = data, aes(x, y, col = "green4"),show.legend = T, size = 3) + 
+  geom_vline(xintercept = 4.85, color = "red", size = 3) +
+  geom_hline(yintercept = 11, color = "red", size = 3) + 
+  geom_abline(aes(intercept = 1, slope = 2, color = "blue"), size = 3, show.legend = T) + 
+  labs(y = "y", x = "x") +
+  theme(axis.text.x=element_text(angle=60, hjust=1)) + 
+  scale_colour_manual('', 
+                      values = c('black' = 'black',
+                                 'green4' = 'green4',
+                                 'blue' = 'blue'), 
+                      labels = c('Data',
+                                 'Training data',
+                                 "True regression line"),
+                      guide = guide_legend(override.aes = list(linetype = c(0, 0, 1),
+                                                               shape = c(16, 16, NA)) ) )
+
+p_res
+
+#ggsave("linear_synthrules_d.png", p_res,width = 16, height = 8, dpi = 300)
+```
 
 

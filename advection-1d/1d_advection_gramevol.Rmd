@@ -1,0 +1,119 @@
+---
+title: "1D advection"
+author: "Themistoklis Botsas"
+date: "25/11/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Linear regression (rule discovery)
+
+## Load the packages
+
+```{r}
+library("gramEvol")
+library("tidyverse")
+library("patchwork")
+```
+
+## Load the data
+
+```{r}
+x_data <- read_csv("x_data.csv", col_names = FALSE)
+y_data <- read_csv("y_data.csv", col_names = FALSE)
+y_true_data <- read_csv("y_true_data.csv", col_names = FALSE)
+
+names(x_data) <- "x"
+names(y_data) <- c("y1", "y2", "y3")
+names(y_true_data) <- c("y1_true", "y2_true", "y3_true")
+
+obs_data <- bind_cols(x_data,y_data)
+true_data <- bind_cols(x_data,y_true_data)
+
+data <- obs_data %>% inner_join(true_data, by = "x")
+
+data %>% glimpse()
+```
+
+## Plot the data
+
+```{r}
+ggplot(obs_data) +
+  geom_point(aes(x=x, y=y1), col = "red") +
+  geom_point(aes(x=x, y=y2), col = "blue") +
+  geom_point(aes(x=x, y=y3), col = "green") +
+  geom_line(data = true_data, aes(x=x, y=y1_true), col = "red") +
+  geom_line(data = true_data, aes(x=x, y=y2_true), col = "blue") +
+  geom_line(data = true_data, aes(x=x, y=y3_true), col = "green")
+```
+
+
+## Rules' discovery
+
+* Define the grammar
+
+```{r}
+ruleDef <- list(
+  res = grule( sum((comparison_g(obs_data$x, num)) != (comparison(var_y, var_y)))),
+  comparison = grule(`>`, `<`),
+  comparison_g = grule(`>`),
+  var_y = grule(obs_data$y2,obs_data$y1),
+  num = gvrule(seq(0.1,4, by = .1)))
+
+grammarDef <- CreateGrammar(ruleDef)
+grammarDef
+
+set.seed(123)
+GrammarRandomExpression(grammarDef, 6)
+```
+
+* Define the cost function
+
+```{r}
+SymRegFitFunc <- function(expr) {
+  result <- suppressWarnings(eval(expr))
+  if (any(is.nan(result)))
+    return(Inf)
+  return (result)
+}
+```
+
+
+* Run the Grammatical evolution algorithm
+
+```{r}
+set.seed(123)
+ge <- GrammaticalEvolution(grammarDef, SymRegFitFunc)
+ge
+```
+
+
+## Plot the rule
+
+```{r}
+all_plots <- ggplot(obs_data) +
+  geom_point(aes(x=x, y=y1), col = "red") +
+  geom_point(aes(x=x, y=y2), col = "green4") +
+  geom_point(aes(x=x, y=y3), col = "blue") +
+  geom_line(data = true_data, aes(x=x, y=y1_true), col = "red") +
+  geom_line(data = true_data, aes(x=x, y=y2_true), col = "green4") +
+  geom_line(data = true_data, aes(x=x, y=y3_true), col = "blue") + 
+  geom_vline(aes(xintercept = 2.6, color = "red"), lty = 2, size = 1.5, show.legend = T) +
+geom_vline(xintercept = 3.14, color = "black", lty = 2, size = 1, show.legend = T) +
+geom_vline(xintercept = 3.6, color = "green4", lty = 2, size = 1.5, show.legend = T)+
+  labs(y = "u", x = "x") +
+  scale_colour_manual('', 
+                      values = c('black' = 'black',
+                                 'green4' = 'green4',
+                                 'red' = 'red'), 
+                      labels = c('True changepoint',
+                                 'u2-u3 changepoint',
+                                 'u1-u2 changepoint'),
+                      guide = guide_legend(override.aes = list(linetype = c(1, 1, 1),
+                                                               shape = c(NA, NA, NA)) ) )
+
+all_plots
+
+#ggsave("1Dadv_synthrules.png", all_plots,width = 16, height = 8, dpi = 300)
+```

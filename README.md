@@ -3,7 +3,7 @@ Code associated with the paper "Automated Rule-based Bayesian regression"
 
 Pre-requisites:
 
-For `R` the required packages are `gramEvol`, `skimr`, `rjson`, and the meta-package `tidyverse`.
+For `R` the required packages are `gramEvol`, `skimr`, `patchwork`, `rjson`, and the meta-package `tidyverse`.
 
 For `python` use
 

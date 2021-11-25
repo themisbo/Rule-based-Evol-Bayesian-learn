@@ -4,3 +4,5 @@ pymc3
 arviz
 sklearn
 matplotlib
+scipy
+theano
