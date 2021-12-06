@@ -1,0 +1,9 @@
+Metrics without rules
+mse: 1.357586777387768
+mae: 0.9935182271412635
+Metrics with GTEP rules
+mse: 2.186758027555471
+mae: 1.245367291196887
+Metrics with AH rules
+mse: 0.8275192469691369
+mae: 0.7790947914342218
