@@ -1,14 +1,14 @@
-# Rule-based-Evol-Bayesian-regr
-Code associated with the paper "Rule-based Evolutionary Bayesian regression"
+# Rule-based-Evol-Bayesian-learn
+Code associated with the paper "Rule-based Evolutionary Bayesian learning"
 
 Pre-requisites:
 
-For `R` the required packages are `gramEvol`, `skimr`, `patchwork`, `plotly`, `rjson`, and the meta-package `tidyverse`.
+For `R` the required packages are `gramEvol`, `skimr`, `patchwork`, `plotly`, `readxl`, `rjson`, and the meta-package `tidyverse`.
 
 For `python` use
 
 ```shell
-git clone https://github.com/themisbo/auto-Rule-based-Bayesian-regr.git
+git clone https://github.com/themisbo/auto-Rule-based-Bayesian-learn.git
 cd auto-Rule-based-Bayesian-regr
 pip install -r requirements.txt
 ```
@@ -24,6 +24,10 @@ The [1D advection](advection-1d/) example.
 ## CO emissions
 
 The [CO emissions](CO-emissions/) example.
+
+## CO emissions
+
+The [Power plant](power_plant/) example.
 
 ## References
 

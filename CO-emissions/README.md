@@ -1,4 +1,4 @@
-# Linear regression
+# Co emissions
 
 The first step is to run the [grammatical evolution](COemissions_gramevol.Rmd) algorithm in `R` in order to derive the rules
 
