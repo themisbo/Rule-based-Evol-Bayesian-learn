@@ -1,0 +1,161 @@
+---
+title: "CO emissions"
+author: "Themistoklis Botsas"
+date: "03/12/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# CO emissions (rule discovery)
+
+## Load the packages
+
+```{r}
+library("gramEvol")
+library("tidyverse")
+library("patchwork")
+library("plotly")
+```
+
+## Piece-wise regression rules
+
+* Load and scale the data
+
+```{r}
+data <- read_csv("/Users/tbotsas/Documents/Research/datasets_rml/pp_gas_emission/pp_gas_emission/gt_2013.csv", col_names = TRUE)
+data %>% glimpse()
+cut_data <- data %>% filter(AH >= 97)
+data_scale <- scale(cut_data)
+(features <- attributes(data_scale))
+scaled_data <- as.data.frame(data_scale)
+scaled_data %>% glimpse()
+
+rescale <- function(input, var){
+  res = input*features$`scaled:scale`[match(var,features$dimnames[[2]])]+features$`scaled:center`[match(var,features$dimnames[[2]])]
+  return (res %>% as.numeric())
+}
+```
+
+* Plot the data
+
+```{r}
+ggplot(data) +
+  geom_point(aes(x=AH, y=CO)) +
+  geom_point(data = scaled_data, aes(rescale(AH,"AH"), rescale(CO,"CO")), col = "green")
+```
+
+* Define the grammar
+
+```{r}
+ruleDef <- list(
+  res = grule( ifelse(expr, expr_y, expr_y) ),
+  expr = grule(comparison(var, num)),
+  expr_y = grule(op(var, var), op(var, num_regr), num_regr),
+  comparison = grule(`>`, `<`, `>=`, `<=`),
+  op = grule(`+`,`-`,`*`),
+  var = grule(scaled_data$AT),
+  #var = grule(scaled_data$GTEP, scaled_data$AT, scaled_data$AH, scaled_data$AFDP),
+  num_regr = gvrule(seq(-5.,5., by = .05)),
+  num = gvrule(seq(-2.,2., by = .05)))
+
+grammarDef <- CreateGrammar(ruleDef)
+
+set.seed(123)
+GrammarRandomExpression(grammarDef, 6)
+```
+
+* Define the cost function
+
+```{r}
+symRegCostFunc <- function(res) {
+  result <- suppressWarnings(eval(res))
+  if (any(is.nan(result)))
+    return (Inf)
+  return (sum((scaled_data$CO - result)^2))}
+```
+
+
+* Run the Grammatical evolution algorithm
+
+```{r}
+set.seed(123)
+ge <- GrammaticalEvolution(grammarDef, symRegCostFunc, iterations = 10000)
+ge
+```
+
+
+## Plot the rules
+
+```{r}
+# Best Expression:  ifelse(scaled_data$GTEP > -0.2, -0.7, scaled_data$GTEP * scaled_data$GTEP) 
+# Best Cost:        207.551822582855 
+
+ff_GTEP <- function(x) rescale(((x-features$`scaled:center`[5])/features$`scaled:scale`[5])^2,"CO")
+
+xv1 <- c(min(scaled_data$GTEP), -0.2, max(scaled_data$GTEP))
+yv1 <- c(-1.2*xv1[1:2], rep(-0.7,2))
+
+pl1 <- ggplot(data) +
+  geom_point(aes(GTEP, CO)) +
+  geom_vline(xintercept = rescale(xv1[2],"GTEP"), color = "red", lty = 2) +
+  geom_point(data = scaled_data, aes(rescale(GTEP,"GTEP"), rescale(CO,"CO")), col = "green") + 
+  stat_function(fun=ff_GTEP, xlim = c(rescale(xv1[1],"GTEP"), rescale(xv1[2],"GTEP")), colour="red", size = 1.5) + 
+  geom_segment(aes(x = rescale(xv1[2],"GTEP"), xend = rescale(xv1[3],"GTEP"), y = rescale(yv1[3],"CO"), yend = rescale(yv1[4],"CO")), color = "red", size = 1.5) +
+  ggtitle(paste("Cost:", 207.55 )) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+# Best Expression:  ifelse(scaled_data$AFDP >= -0.5, -0.55, scaled_data$AFDP * -0.95) 
+# Best Cost:        254.682583122067 
+
+xv2 <- c(min(scaled_data$AFDP), -0.5, max(scaled_data$AFDP))
+yv2 <- c(-0.95*xv1[1:2], rep(-0.55,2))
+
+pl2 <- ggplot(data) +
+  geom_point(aes(AFDP, CO)) +
+  geom_vline(xintercept = rescale(xv2[2],"AFDP"), color = "red", lty = 2) +
+  geom_point(data = scaled_data, aes(rescale(AFDP,"AFDP"), rescale(CO,"CO")), col = "green") + 
+  geom_segment(aes(x = rescale(xv2[1],"AFDP"), xend = rescale(xv2[2],"AFDP"), y = rescale(yv2[1],"CO"), yend = rescale(yv2[2],"CO")), color = "red", size = 1.5) +
+  geom_segment(aes(x = rescale(xv2[2],"AFDP"), xend = rescale(xv2[3],"AFDP"), y = rescale(yv2[3],"CO"), yend = rescale(yv2[4],"CO")), color = "red", size = 1.5) +
+  ggtitle(paste("Cost:", 254.68)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Best Expression:  ifelse(scaled_data$AT > 1.35, 0.550000000000001, -0.0499999999999998) 
+# Best Cost:        526.851884401974 
+
+xv3 <- c(min(scaled_data$AT), 1.35, max(scaled_data$AT))
+yv3 <- c(rep(-0.05,2), rep(0.55,2))
+
+pl3 <- ggplot(data) +
+  geom_point(aes(AT, CO)) +
+  geom_vline(xintercept = rescale(xv3[2],"AT"), color = "red", lty = 2) +
+  geom_point(data = scaled_data, aes(rescale(AT,"AT"), rescale(CO,"CO")), col = "green") + 
+  geom_segment(aes(x = rescale(xv3[1],"AT"), xend = rescale(xv3[2],"AT"), y = rescale(yv3[1],"CO"), yend = rescale(yv3[2],"CO")), color = "red", size = 1.5) +
+  geom_segment(aes(x = rescale(xv3[2],"AT"), xend = rescale(xv3[3],"AT"), y = rescale(yv3[3],"CO"), yend = rescale(yv3[4],"CO")), color = "red", size = 1.5) +
+  ggtitle(paste("Cost:", 526.85 )) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Best Expression:  ifelse(scaled_data$AH >= -1.55, scaled_data$AH * -0.0499999999999998, -0.199999999999999) 
+# Best Cost:        543.559471124266 
+
+xv4 <- c(min(scaled_data$AH), -1.55, max(scaled_data$AH))
+yv4 <- c(rep(-0.2,2), -0.05*xv4[2:3])
+
+pl4 <- ggplot(data) +
+  geom_point(aes(AH, CO)) +
+  geom_vline(xintercept = rescale(xv4[2],"AH"), color = "red", lty = 2) +
+  geom_point(data = scaled_data, aes(rescale(AH,"AH"), rescale(CO,"CO")), col = "green") + 
+  geom_segment(aes(x = rescale(xv4[1],"AH"), xend = rescale(xv4[2],"AH"), y = rescale(yv4[1],"CO"), yend = rescale(yv4[2],"CO")), color = "red", size = 1.5) +
+  geom_segment(aes(x = rescale(xv4[2],"AH"), xend = rescale(xv4[3],"AH"), y = rescale(yv4[3],"CO"), yend = rescale(yv4[4],"CO")), color = "red", size = 1.5) +
+    geom_segment(aes(x = min(data$AH), xend = rescale(xv4[2],"AH"), y = rescale(yv4[1],"CO"), yend = rescale(yv4[2],"CO")), color = "yellow", size = 1.5) +
+  ggtitle(paste("Cost:", 543.56)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+p_final <- (pl1+ pl2)/(pl3 + pl4)
+p_final
+ggsave("CO_rulesRegrall.png", p_final, width = 16, height = 16, dpi = 300)
+```
+
+

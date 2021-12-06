@@ -1,0 +1,152 @@
+---
+title: "Power plant"
+author: "Themistoklis Botsas"
+date: "06/12/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Electrical power output (rule discovery)
+
+## Load the packages
+
+```{r}
+library("gramEvol")
+library("tidyverse")
+library("patchwork")
+library("plotly")
+library("readxl")
+```
+
+## Classification rules
+
+* Load and scale the data
+
+```{r}
+PE_cuttof = 465
+AT_cuttof = 20
+
+orig_data <- read_excel("/Users/tbotsas/Documents/Research/datasets_rml/CCPP/Folds5x2_pp.xlsx", col_names = TRUE)
+orig_data <- orig_data %>% mutate("PE_class" = case_when(PE >= PE_cuttof ~ 1, TRUE ~ 0))
+orig_data %>% glimpse()
+data <- orig_data %>% head(1000) %>% filter(AT <= AT_cuttof)
+data_scale <- scale(data[1:5])
+(features <- attributes(data_scale))
+scaled_data <- as.data.frame(data_scale)
+scaled_data$PE_class = data$PE_class
+scaled_data %>% glimpse()
+
+rescale <- function(input, var){
+  res = input*features$`scaled:scale`[match(var,features$dimnames[[2]])]+features$`scaled:center`[match(var,features$dimnames[[2]])]
+  return (res %>% as.numeric())
+}
+
+class1 <- orig_data %>% filter(PE >= PE_cuttof)
+```
+
+* Plot the data
+
+```{r}
+ggplot(orig_data) +
+  geom_point(aes(x=AT, y=PE)) +
+  geom_point(data = class1, aes(x=AT, y=PE), col = "gold4") +
+  geom_point(data = data, aes(x = AT, y= PE), col = "green") +
+  geom_hline(yintercept = PE_cuttof, color = "blue", size = 1.5, lty = 2)
+```
+
+* Define the grammar
+
+```{r}
+ruleDef <- list(
+  res = grule( ifelse(comparison(var, num) , 1, 0) ),
+  comparison = grule(`>`, `<`, `>=`, `<=`),
+  var = grule(scaled_data$AT),
+  #var = grule(scaled_data$AT, scaled_data$V, scaled_data$AP, scaled_data$RH),
+  num = gvrule(seq(-2.,2., by = .05)))
+
+grammarDef <- CreateGrammar(ruleDef)
+
+set.seed(123)
+GrammarRandomExpression(grammarDef, 6)
+```
+
+* Define the cost function
+
+```{r}
+SymClassFitFunc <- function(expr) {
+  result <- suppressWarnings(eval(expr))
+  if (any(is.nan(result)))
+    return(Inf)
+  return (sum(result != scaled_data$PE_class) )
+}
+```
+
+
+* Run the Grammatical evolution algorithm
+
+```{r}
+set.seed(123)
+ge <- GrammaticalEvolution(grammarDef, SymClassFitFunc, iterations = 10000)
+ge
+```
+
+
+## Plot the rules
+
+```{r}
+# Best Expression:  ifelse(scaled_data$AT < 0.45, 1, 0) 
+# Best Cost:        71
+
+pl1 <- ggplot(orig_data) +
+  geom_point(aes(AT, PE)) +
+  geom_point(data = class1, aes(x=AT, y=PE), col = "gold4") +
+  geom_point(data = scaled_data, aes(rescale(AT,"AT"), rescale(PE,"PE")), col = "green") + 
+  geom_vline(xintercept = rescale(0.45,"AT"), color = "red", lty = 2, size = 1.5) +
+  geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
+  ggtitle(paste("Cost:", 71 )) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+# Best Expression:  ifelse(scaled_data$V < 0.25, 1, 0) 
+# Best Cost:        96 
+
+pl2 <- ggplot(orig_data) +
+  geom_point(aes(V, PE)) +
+  geom_point(data = class1, aes(x=V, y=PE), col = "gold4") +
+  geom_point(data = scaled_data, aes(rescale(V,"V"), rescale(PE,"PE")), col = "green") + 
+  geom_vline(xintercept = rescale(0.25,"V"), color = "red", lty = 2, size = 1.5) +
+  geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
+  ggtitle(paste("Cost:", 96 )) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Best Expression:  ifelse(scaled_data$AP >= -1.1, 1, 0) 
+# Best Cost:        172
+
+pl3 <- ggplot(orig_data) +
+  geom_point(aes(AP, PE)) +
+  geom_point(data = class1, aes(x=AP, y=PE), col = "gold4") +
+  geom_point(data = scaled_data, aes(rescale(AP,"AP"), rescale(PE,"PE")), col = "green") + 
+  geom_vline(xintercept = rescale(-1.11,"AP"), color = "red", lty = 2, size = 1.5) +
+  geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
+  ggtitle(paste("Cost:", 172 )) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Best Expression:  ifelse(scaled_data$RH <= 1.55, 1, 0) 
+# Best Cost:        176 
+
+pl4 <- ggplot(orig_data) +
+  geom_point(aes(RH, PE)) +
+  geom_point(data = class1, aes(x=RH, y=PE), col = "gold4") +
+  geom_point(data = scaled_data, aes(rescale(RH,"RH"), rescale(PE,"PE")), col = "green") + 
+  geom_vline(xintercept = rescale(1.55,"RH"), color = "red", lty = 2, size = 1.5) +
+  geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
+  ggtitle(paste("Cost:", 176 )) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+p_final <- (pl1+ pl2)/(pl3 + pl4)
+p_final
+ggsave("PE_rulesClassall.png", p_final, width = 16, height = 16, dpi = 300)
+```
+
