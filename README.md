@@ -25,7 +25,7 @@ The [1D advection](advection-1d/) example.
 
 The [CO emissions](CO-emissions/) example.
 
-## CO emissions
+## Power plant
 
 The [Power plant](power_plant/) example.
 
