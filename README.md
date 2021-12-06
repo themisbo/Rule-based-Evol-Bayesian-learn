@@ -9,7 +9,7 @@ For `python` use
 
 ```shell
 git clone https://github.com/themisbo/auto-Rule-based-Bayesian-learn.git
-cd auto-Rule-based-Bayesian-regr
+cd auto-Rule-based-Bayesian-learn
 pip install -r requirements.txt
 ```
 
