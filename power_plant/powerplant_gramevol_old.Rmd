@@ -1,7 +1,7 @@
 ---
 title: "Power plant"
 author: "Themistoklis Botsas"
-date: "13/12/2021"
+date: "06/12/2021"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -24,13 +24,13 @@ library("readxl")
 * Load and scale the data
 
 ```{r}
-PE_cuttof = 440
-AT_cuttof = 25
+PE_cuttof = 465
+AT_cuttof = 20
 
 orig_data <- read_excel("/Users/tbotsas/Documents/Research/datasets_rml/CCPP/Folds5x2_pp.xlsx", col_names = TRUE)
-orig_data <- orig_data %>% mutate("PE_class" = case_when(PE > PE_cuttof ~ 0, TRUE ~ 1))
+orig_data <- orig_data %>% mutate("PE_class" = case_when(PE >= PE_cuttof ~ 1, TRUE ~ 0))
 orig_data %>% glimpse()
-data <- orig_data %>% filter(AT >= AT_cuttof)
+data <- orig_data %>% head(1000) %>% filter(AT <= AT_cuttof)
 data_scale <- scale(data[1:5])
 (features <- attributes(data_scale))
 scaled_data <- as.data.frame(data_scale)
@@ -42,7 +42,7 @@ rescale <- function(input, var){
   return (res %>% as.numeric())
 }
 
-class1 <- orig_data %>% filter(PE <= PE_cuttof)
+class1 <- orig_data %>% filter(PE >= PE_cuttof)
 ```
 
 * Plot the data
@@ -63,7 +63,7 @@ ruleDef <- list(
   comparison = grule(`>`, `<`, `>=`, `<=`),
   var = grule(scaled_data$AT),
   #var = grule(scaled_data$AT, scaled_data$V, scaled_data$AP, scaled_data$RH),
-  num = gvrule(seq(-1.4,3.5, by = .05)))
+  num = gvrule(seq(-2.,2., by = .05)))
 
 grammarDef <- CreateGrammar(ruleDef)
 
@@ -95,61 +95,58 @@ ge
 ## Plot the rules
 
 ```{r}
-#  Best Expression:  ifelse(scaled_data$AT >= -1.3, 1, 0) 
-#  Best Cost:        688 
+# Best Expression:  ifelse(scaled_data$AT < 0.45, 1, 0) 
+# Best Cost:        71
 
 pl1 <- ggplot(orig_data) +
   geom_point(aes(AT, PE)) +
-  geom_rect(aes(xmin = rescale(-1.3,"AT"), xmax = Inf, ymin = -Inf, ymax = PE_cuttof), fill = "pink", alpha = 0.03) +
   geom_point(data = class1, aes(x=AT, y=PE), col = "gold4") +
   geom_point(data = scaled_data, aes(rescale(AT,"AT"), rescale(PE,"PE")), col = "green") + 
-  geom_vline(xintercept = rescale(-1.3,"AT"), color = "red", lty = 2, size = 1.5) +
+  geom_vline(xintercept = rescale(0.45,"AT"), color = "red", lty = 2, size = 1.5) +
   geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
-  ggtitle(paste("Cost:", 688 )) +
+  ggtitle(paste("Cost:", 71 )) +
   theme(plot.title = element_text(hjust = 0.5))
 
 
-# Best Expression:  ifelse(scaled_data$V > -0.15, 1, 0) 
-# Best Cost:        527 
+# Best Expression:  ifelse(scaled_data$V < 0.25, 1, 0) 
+# Best Cost:        96 
 
 pl2 <- ggplot(orig_data) +
   geom_point(aes(V, PE)) +
-  geom_rect(aes(xmin = rescale(-0.15,"V"), xmax = Inf, ymin = -Inf, ymax = PE_cuttof), fill = "pink", alpha = 0.03) +
   geom_point(data = class1, aes(x=V, y=PE), col = "gold4") +
   geom_point(data = scaled_data, aes(rescale(V,"V"), rescale(PE,"PE")), col = "green") + 
-  geom_vline(xintercept = rescale(-0.15,"V"), color = "red", lty = 2, size = 1.5) +
+  geom_vline(xintercept = rescale(0.25,"V"), color = "red", lty = 2, size = 1.5) +
   geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
-  ggtitle(paste("Cost:", 527 )) +
+  ggtitle(paste("Cost:", 96 )) +
   theme(plot.title = element_text(hjust = 0.5))
 
-# Best Expression:  ifelse(scaled_data$AP < 2.1, 1, 0) 
-# Best Cost:        682 
+# Best Expression:  ifelse(scaled_data$AP >= -1.1, 1, 0) 
+# Best Cost:        172
 
 pl3 <- ggplot(orig_data) +
   geom_point(aes(AP, PE)) +
-  geom_rect(aes(xmin = -Inf, xmax = rescale(2.1,"AP"), ymin = -Inf, ymax = PE_cuttof), fill = "pink", alpha = 0.03) +
   geom_point(data = class1, aes(x=AP, y=PE), col = "gold4") +
   geom_point(data = scaled_data, aes(rescale(AP,"AP"), rescale(PE,"PE")), col = "green") + 
-  geom_vline(xintercept = rescale(2.1,"AP"), color = "red", lty = 2, size = 1.5) +
+  geom_vline(xintercept = rescale(-1.11,"AP"), color = "red", lty = 2, size = 1.5) +
   geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
-  ggtitle(paste("Cost:", 682 )) +
+  ggtitle(paste("Cost:", 172 )) +
   theme(plot.title = element_text(hjust = 0.5))
 
-# Best Expression:  ifelse(scaled_data$RH <= 2.7, 1, 0) 
-# Best Cost:        702 
+# Best Expression:  ifelse(scaled_data$RH <= 1.55, 1, 0) 
+# Best Cost:        176 
 
 pl4 <- ggplot(orig_data) +
   geom_point(aes(RH, PE)) +
-  geom_rect(aes(xmin = -Inf, xmax = rescale(2.7,"RH"), ymin = -Inf, ymax = PE_cuttof), fill = "pink", alpha = 0.03) +
   geom_point(data = class1, aes(x=RH, y=PE), col = "gold4") +
   geom_point(data = scaled_data, aes(rescale(RH,"RH"), rescale(PE,"PE")), col = "green") + 
-  geom_vline(xintercept = rescale(2.7,"RH"), color = "red", lty = 2, size = 1.5) +
+  geom_vline(xintercept = rescale(1.55,"RH"), color = "red", lty = 2, size = 1.5) +
   geom_hline(yintercept = PE_cuttof, color = "blue", lty = 2, size = 1.5) +
-  ggtitle(paste("Cost:", 702 )) +
+  ggtitle(paste("Cost:", 176 )) +
   theme(plot.title = element_text(hjust = 0.5))
 
 
 p_final <- (pl1+ pl2)/(pl3 + pl4)
 p_final
-# ggsave("PE_rulesClassall.png", p_final, width = 16, height = 16, dpi = 300)
+ggsave("PE_rulesClassall.png", p_final, width = 16, height = 16, dpi = 300)
 ```
+
