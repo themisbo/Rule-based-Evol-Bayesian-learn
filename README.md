@@ -35,4 +35,4 @@ The [Power plant](power_plant/) example.
 
 
 ## Citation
-If you use this work or build up on it, please cite https://arxiv.org/abs/2008.00422.
+If you use this work or build up on it, please cite https://arxiv.org/abs/2202.13778.
